@@ -1,0 +1,1567 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Karanlık Açık Dünya Boss Fight Oyunu</title>
+<style>
+  @font-face {
+    font-family: 'HFF';
+    src: url('Misc/hff.ttf') format('truetype');
+  }
+  html, body {
+    margin:0; padding:0; overflow:hidden; background:#111;
+    height:100vh; width:100vw; user-select:none;
+    font-family: 'HFF', monospace, sans-serif;
+    color: white;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+  }
+  canvas {
+    display:block; margin:0 auto; background:#111;
+    image-rendering: pixelated;
+    touch-action: none;
+  }
+  #joystickContainer {
+    position: fixed;
+    bottom: 20px; left: 20px;
+    width: 120px; height: 120px;
+    touch-action: none;
+    user-select:none;
+    z-index: 10;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #joystickBase, #joystickStick {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #joystickBase {
+    width: 120px; height: 120px;
+  }
+  #joystickStick {
+    width: 60px; height: 60px;
+    background: rgba(255,255,255,0.5);
+    top: 30px; left: 30px;
+  }
+  #info {
+    position: fixed; top: 10px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.6);
+    padding: 6px 16px;
+    border-radius: 10px;
+    font-size: 16px;
+    z-index: 10;
+    white-space: nowrap;
+    margin-bottom: 5px;
+  }
+  #questInfo {
+    position: fixed;
+    top: 45px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.7);
+    padding: 6px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    color: #ffcc00;
+    z-index: 10;
+    white-space: nowrap;
+    margin-top: 5px;
+  }
+  #dialogueBox {
+    position: fixed;
+    bottom: 140px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.9);
+    padding: 12px 20px;
+    border-radius: 15px;
+    font-size: 16px;
+    max-width: 70%;
+    line-height: 1.4;
+    z-index: 15;
+    display: none;
+    box-shadow: 0 0 15px rgba(255,255,255,0.7);
+    text-align: center;
+    white-space: normal;
+    word-break: break-word;
+  }
+  #hpBar {
+    position: fixed;
+    top: 85px;
+    left: 20px;
+    width: 220px;
+    height: 20px;
+    border: 2px solid white;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #222;
+    z-index: 10;
+  }
+  #hpBarInner {
+    height: 100%;
+    background: linear-gradient(90deg, #e00, #a00);
+    width: 100%;
+    transition: width 0.2s ease;
+  }
+  #bossContainer {
+    position: fixed;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 280px;
+    z-index: 25;
+    text-align: center;
+    user-select:none;
+  }
+  #bossName {
+    color: orange;
+    font-size: 22px;
+    font-weight: bold;
+    text-shadow: 0 0 5px orange;
+    margin-bottom: 5px;
+    white-space: nowrap;
+  }
+  #bossHpBar {
+    width: 100%;
+    height: 24px;
+    border: 3px solid orange;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #330000;
+  }
+  #bossHpBarInner {
+    height: 100%;
+    background: linear-gradient(90deg, #ffa500, #ff4500);
+    width: 100%;
+    transition: width 0.2s ease;
+  }
+  #attackButton {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: rgba(255, 0, 0, 0.7);
+    border: 3px solid white;
+    color: white;
+    font-family: 'HFF', monospace;
+    font-size: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    touch-action: manipulation;
+    z-index: 10;
+    box-shadow: 0 0 12px rgba(255, 0, 0, 0.8);
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #attackButton:focus {
+    outline: none;
+  }
+  #attackButton:active {
+    background: rgba(255, 0, 0, 0.95);
+    box-shadow: 0 0 25px rgba(255, 0, 0, 1);
+  }
+  #gameOverScreen {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.95);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 48px;
+    color: red;
+    font-weight: bold;
+    text-shadow: 0 0 20px red;
+    z-index: 100;
+    display: none;
+    padding: 20px;
+    text-align: center;
+  }
+  /* Start ekranı */
+  #startScreen {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: url('Img/stbg.png') center center / cover no-repeat;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 200;
+  }
+  #startScreen button {
+    font-family: 'HFF', monospace;
+    font-size: 24px;
+    padding: 14px 40px;
+    margin: 12px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    color: white;
+    background: rgba(0,0,0,0.7);
+    box-shadow: 0 0 15px #00ff00;
+    transition: background 0.3s ease;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #startScreen button:hover {
+    background: rgba(0,0,0,0.9);
+  }
+  /* Coin gösterimi */
+  #coinDisplay {
+    position: fixed;
+    top: 10px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    font-size: 20px;
+    font-weight: bold;
+    color: gold;
+    text-shadow: 0 0 8px gold;
+    z-index: 50;
+  }
+  #coinDisplay img {
+    width: 28px;
+    height: 28px;
+    margin-left: 8px;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  /* Shop ekranı */
+  #shopScreen {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.95);
+    border-radius: 20px;
+    padding: 30px 40px;
+    color: white;
+    font-family: 'HFF', monospace;
+    font-size: 18px;
+    z-index: 300;
+    width: 320px;
+    max-width: 90vw;
+    display: none;
+    box-shadow: 0 0 20px #00ff00;
+  }
+  #shopScreen h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #00ff00;
+    text-shadow: 0 0 10px #00ff00;
+  }
+  #shopScreen .shopItem {
+    margin: 12px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #shopScreen .shopItem button {
+    background: #004400;
+    border: 2px solid #00ff00;
+    color: #00ff00;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.3s ease;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #shopScreen .shopItem button:disabled {
+    background: #222;
+    border-color: #555;
+    color: #555;
+    cursor: default;
+  }
+  #shopScreen .shopItem button:hover:not(:disabled) {
+    background: #007700;
+  }
+  #shopCloseBtn {
+    margin-top: 20px;
+    display: block;
+    width: 100%;
+    background: #002200;
+    border: 2px solid #00ff00;
+    color: #00ff00;
+    padding: 10px 0;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 20px;
+    font-weight: bold;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #shopCloseBtn:hover {
+    background: #005500;
+  }
+  /* Butonlar ve interaktif elemanlar için genel odak ve tap highlight kaldırma */
+  button, #joystickContainer, #joystickBase, #joystickStick {
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  /* Sinematik 3. Katil animasyonları */
+  #thirdKatil {
+    position: fixed;
+    width: 120px;
+    height: 120px;
+    background: url('Img/thirdKatil.png') no-repeat center center / contain;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 500;
+    filter: drop-shadow(0 0 10px red);
+    display: none;
+  }
+  #thirdKatil.shooting {
+    animation: shootAnim 0.6s ease forwards;
+  }
+  @keyframes shootAnim {
+    0% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(-10px); }
+    100% { transform: translateX(-50%) translateY(0); }
+  }
+  #thirdKatilDialogue {
+    position: fixed;
+    bottom: 230px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.9);
+    padding: 12px 20px;
+    border-radius: 15px;
+    font-size: 16px;
+    max-width: 70%;
+    line-height: 1.4;
+    z-index: 510;
+    color: #ff4444;
+    text-shadow: 0 0 10px red;
+    display: none;
+    text-align: center;
+    user-select:none;
+  }
+  /* Ateş efekti için kırmızı flaş */
+  #fireFlash {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(255, 0, 0, 0.4);
+    pointer-events: none;
+    opacity: 0;
+    z-index: 600;
+    transition: opacity 0.15s ease-out;
+  }
+</style>
+</head>
+<body>
+
+<!-- Start Ekranı -->
+<div id="startScreen" role="dialog" aria-modal="true" aria-label="Oyun başlangıç ekranı">
+  <button id="startGameBtn" type="button" aria-label="Oyunu başlat">Start</button>
+  <button id="openShopBtn" type="button" aria-label="Dükkanı aç">Shop</button>
+</div>
+
+<!-- Coin Gösterimi -->
+<div id="coinDisplay" aria-live="polite" aria-atomic="true" aria-label="Coin sayısı">
+  <span id="coinCount">0</span>
+  <img src="Img/coin.png" alt="Coin simgesi" />
+</div>
+
+<!-- Shop Ekranı -->
+<div id="shopScreen" role="dialog" aria-modal="true" aria-label="Dükkan">
+  <h2>Shop</h2>
+  <div class="shopItem">
+    <span>2x Hız: 1000 coin</span>
+    <button data-power="speed" type="button">Satın Al</button>
+  </div>
+  <div class="shopItem">
+    <span>2x Hasar: 3000 coin</span>
+    <button data-power="damage" type="button">Satın Al</button>
+  </div>
+  <div class="shopItem">
+    <span>2x Coin: 10000 coin</span>
+    <button data-power="coin" type="button">Satın Al</button>
+  </div>
+  <button id="shopCloseBtn" type="button" aria-label="Dükkanı kapat">Kapat</button>
+</div>
+
+<canvas id="game" aria-label="Oyun alanı"></canvas>
+
+<div id="joystickContainer" aria-label="Joystick kontrolü" role="application" tabindex="0">
+  <div id="joystickBase"></div>
+  <div id="joystickStick"></div>
+</div>
+
+<button id="attackButton" aria-label="Vur butonu" type="button">VUR</button>
+
+<div id="info" aria-live="polite">Süper Güç: Yok</div>
+<div id="questInfo" aria-live="polite">Görev: Suçlu Katilleri Etkisizleştir (0/5)</div>
+<div id="dialogueBox" role="dialog" aria-modal="true" aria-live="assertive"></div>
+<div id="hpBar" aria-label="Oyuncu can barı"><div id="hpBarInner"></div></div>
+
+<div id="bossContainer" aria-label="Boss can barı ve ismi" style="display:none;">
+  <div id="bossName"></div>
+  <div id="bossHpBar"><div id="bossHpBarInner"></div></div>
+</div>
+
+<div id="gameOverScreen" role="alert"></div>
+
+<!-- Sinematik 3. Katil -->
+<div id="thirdKatil" aria-label="3. Katil karakteri"></div>
+<div id="thirdKatilDialogue" role="dialog" aria-modal="true" aria-live="assertive"></div>
+<div id="fireFlash"></div>
+
+<audio id="bgmExploration" src="Snd/bgm2.mp3" loop preload="auto"></audio>
+<audio id="bgmBoss" src="Snd/bgm3.mp3" loop preload="auto"></audio>
+<audio id="bgmStartMenu" src="Snd/stbm.mp3" loop preload="auto"></audio>
+<audio id="sfxPlayerHit" src="Snd/attack.mp3" preload="auto"></audio>
+<audio id="sfxPowerUp" src="Snd/powerup.mp3" preload="auto"></audio>
+<audio id="sfxBossDefeat" src="Snd/bossdefeat.mp3" preload="auto"></audio>
+<audio id="sfxButton" src="Snd/button.mp3" preload="auto"></audio>
+<audio id="sfxScreaming" src="Snd/screaming.mp3" preload="auto"></audio>
+<audio id="sfxShot" src="Snd/shot.mp3" preload="auto"></audio>
+<audio id="sfxThirdKatilShoot" src="Snd/bang.mp3" preload="auto"></audio>
+
+<script>
+(() => {
+  // --- Hata yakalama ve güvenli fonksiyonlar ---
+  function safePreventDefault(event) {
+    try {
+      if (event && event.cancelable && typeof event.preventDefault === 'function') {
+        event.preventDefault();
+      }
+    } catch (e) {
+      console.warn('preventDefault failed:', e);
+    }
+  }
+  
+  function safeStopPropagation(event) {
+    try {
+      if (event && typeof event.stopPropagation === 'function') {
+        event.stopPropagation();
+      }
+    } catch (e) {
+      console.warn('stopPropagation failed:', e);
+    }
+  }
+
+  // --- Elementler ---
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const info = document.getElementById('info');
+  const questInfo = document.getElementById('questInfo');
+  const dialogueBox = document.getElementById('dialogueBox');
+  const hpBarInner = document.getElementById('hpBarInner');
+  const bossContainer = document.getElementById('bossContainer');
+  const bossHpBarInner = document.getElementById('bossHpBarInner');
+  const bossNameDisplay = document.getElementById('bossName');
+  const attackButton = document.getElementById('attackButton');
+  const gameOverScreen = document.getElementById('gameOverScreen');
+  const joystickContainer = document.getElementById('joystickContainer');
+  const joystickStick = document.getElementById('joystickStick');
+  const startScreen = document.getElementById('startScreen');
+  const startGameBtn = document.getElementById('startGameBtn');
+  const openShopBtn = document.getElementById('openShopBtn');
+  const shopScreen = document.getElementById('shopScreen');
+  const shopCloseBtn = document.getElementById('shopCloseBtn');
+  const coinDisplay = document.getElementById('coinDisplay');
+  const coinCountSpan = document.getElementById('coinCount');
+  const bgmExploration = document.getElementById('bgmExploration');
+  const bgmBoss = document.getElementById('bgmBoss');
+  const bgmStartMenu = document.getElementById('bgmStartMenu');
+  const sfxPlayerHit = document.getElementById('sfxPlayerHit');
+  const sfxPowerUp = document.getElementById('sfxPowerUp');
+  const sfxBossDefeat = document.getElementById('sfxBossDefeat');
+  const sfxButton = document.getElementById('sfxButton');
+  const sfxScreaming = document.getElementById('sfxScreaming');
+  const sfxShot = document.getElementById('sfxShot');
+  const sfxThirdKatilShoot = document.getElementById('sfxThirdKatilShoot');
+  const thirdKatilElem = document.getElementById('thirdKatil');
+  const thirdKatilDialogue = document.getElementById('thirdKatilDialogue');
+  const fireFlash = document.getElementById('fireFlash');
+
+  // --- Sabitler ---
+  const WORLD_SIZE = 10000;
+  const CAMERA_FOV_RADIUS = 150 * 5;
+  const INNOCENT_PEOPLE_COUNT_PER_BOSS = 5;
+
+  // --- Oyun Durumları ---
+  let gameOver = false;
+  let inBossFight = false;
+  let currentBossIndex = 0;
+  let currentBoss = null;
+  let killedCriminalsCount = 0;
+
+  // --- Coin ve Shop Durumu ---
+  let coins = 0;
+  const shopPowers = {
+    speed: { cost: 1000, bought: false },
+    damage: { cost: 3000, bought: false },
+    coin: { cost: 10000, bought: false }
+  };
+
+  // --- Oyuncu ---
+  const player = {
+    x: WORLD_SIZE / 2,
+    y: WORLD_SIZE / 2,
+    radius: 30,
+    color: 'white',
+    speed: 6,
+    hp: 100,
+    maxHp: 100,
+    power: null,
+    powerActive: false,
+    powerTimer: 0,
+    invincibleTimer: 0,
+    canMove: true,
+    canAttack: true,
+    attackCooldown: 0,
+    damageMultiplier: 1,
+    coinMultiplier: 1
+  };
+
+  // --- Güçler ---
+  const powerTypes = [
+    { color: 'purple', name: 'Hız Laneti', effect: p => { p.speed = 9; p.radius = 30; } },
+    { color: 'blue', name: 'Gölge Nüfuzu', effect: p => { p.invincibleTimer = 300; } },
+    { color: 'green', name: 'Kan Yenileme', effect: p => { p.hp = Math.min(p.maxHp, p.hp + 50); } },
+    { color: 'yellow', name: 'Devasa Güç', effect: p => { p.radius = 45; p.speed = 6; } }
+  ];
+
+  // --- Düşmanlar, Bosslar, Diğerleri ---
+  const redButton = {
+    x: Math.random() * (WORLD_SIZE - 200) + 100,
+    y: Math.random() * (WORLD_SIZE - 200) + 100,
+    radius: 40,
+    color: 'red',
+    activated: false
+  };
+
+  const tuxakCount = 60;
+  const tuxaks = [];
+  function createTuxaks() {
+    tuxaks.length = 0;
+    for (let i = 0; i < tuxakCount; i++) {
+      tuxaks.push({
+        x: Math.random() * (WORLD_SIZE - 50) + 25,
+        y: Math.random() * (WORLD_SIZE - 50) + 25,
+        radius: 20 + Math.random() * 10,
+        color: 'gray'
+      });
+    }
+  }
+  createTuxaks();
+
+  let criminals = [];
+  function createCriminals(count) {
+    criminals.length = 0;
+    for (let i = 0; i < count; i++) {
+      criminals.push({
+        x: Math.random() * (WORLD_SIZE - 50) + 25,
+        y: Math.random() * (WORLD_SIZE - 50) + 25,
+        radius: 15,
+        color: `hsl(${Math.random() * 360}, 100%, 55%)`,
+        speed: 3 + Math.random(),
+        alive: true,
+        bleeding: false,
+        bleedTimer: 0
+      });
+    }
+  }
+  createCriminals(INNOCENT_PEOPLE_COUNT_PER_BOSS * 5);
+
+  const bossAreas = [
+    { id: 0, x: 1000, y: 1000, radius: 150, power: powerTypes[0], name: 'Hız Laneti Lordu', innocentKillsNeeded: 5, defeated: false },
+    { id: 1, x: 2000, y: 1000, radius: 150, power: powerTypes[1], name: 'Gölge Şerefsizi', innocentKillsNeeded: 5, defeated: false },
+    { id: 2, x: 1000, y: 2000, radius: 150, power: powerTypes[2], name: 'Kanlı Şaman', innocentKillsNeeded: 5, defeated: false },
+    { id: 3, x: 2000, y: 2000, radius: 150, power: powerTypes[3], name: 'Devasa Piç', innocentKillsNeeded: 5, defeated: false },
+    { id: 4, x: WORLD_SIZE / 2, y: WORLD_SIZE / 2, radius: 200, power: { name: 'Nihai Güç', effect: p => { p.speed *= 1.5; p.maxHp += 100; p.hp += 100; } }, name: 'Karanlık Yaratıcı', innocentKillsNeeded: 10, defeated: false }
+  ];
+
+  class Boss {
+    constructor(id, x, y, power, name, innocentKillsNeeded) {
+      this.id = id;
+      this.x = x;
+      this.y = y;
+      this.radius = 60;
+      this.color = 'orange';
+      this.hp = 200;
+      this.maxHp = 200;
+      this.power = power;
+      this.speed = 2;
+      this.active = false;
+      this.attackCooldown = 0;
+      this.name = name;
+      this.isDefeated = false;
+      this.innocentKillsNeeded = innocentKillsNeeded;
+    }
+    update() {
+      if (!this.active || this.isDefeated || player.hp <= 0) return;
+      const dx = player.x - this.x;
+      const dy = player.y - this.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > 0) {
+        this.x += (dx / dist) * this.speed;
+        this.y += (dy / dist) * this.speed;
+      }
+      if (this.attackCooldown > 0) this.attackCooldown--;
+      else if (dist < this.radius + player.radius + 10) {
+        if (player.invincibleTimer <= 0) {
+          player.hp -= 15;
+          player.invincibleTimer = 60;
+          if (player.hp < 0) player.hp = 0;
+        }
+        this.attackCooldown = 45;
+      }
+    }
+    draw() {
+      if (!this.active || this.isDefeated) return;
+      const cx = this.x - camera.x;
+      const cy = this.y - camera.y;
+      ctx.beginPath();
+      ctx.fillStyle = this.color;
+      ctx.shadowColor = 'orange';
+      ctx.shadowBlur = 20;
+      ctx.arc(cx, cy, this.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      const hpRatio = Math.max(0, this.hp / this.maxHp);
+      ctx.fillStyle = 'red';
+      ctx.fillRect(cx - this.radius, cy - this.radius - 15, this.radius * 2 * hpRatio, 8);
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(cx - this.radius, cy - this.radius - 15, this.radius * 2, 8);
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 18px HFF, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(this.name, cx, cy - this.radius - 30);
+    }
+  }
+  const bosses = bossAreas.map(b => new Boss(b.id, b.x, b.y, b.power, b.name, b.innocentKillsNeeded));
+
+  // --- Kamera ---
+  const camera = {
+    x: 0, y: 0,
+    width: canvas.width,
+    height: canvas.height,
+    fovRadius: CAMERA_FOV_RADIUS
+  };
+
+  // --- Parçacıklar ve Kan Havuzları ---
+  const particles = [];
+  const bloodPools = [];
+
+  // --- Joystick Kontrolleri ---
+  let joystickActive = false;
+  let joystickStart = { x: 0, y: 0 };
+  let joystickPos = { x: 0, y: 0 };
+  let moveVector = { x: 0, y: 0 };
+
+  function limitJoystick(pos) {
+    const maxDist = 50;
+    const dx = pos.x - joystickStart.x;
+    const dy = pos.y - joystickStart.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > maxDist) {
+      return {
+        x: joystickStart.x + dx / dist * maxDist,
+        y: joystickStart.y + dy / dist * maxDist
+      };
+    }
+    return pos;
+  }
+  function updateJoystick() {
+    const dx = joystickPos.x - joystickStart.x;
+    const dy = joystickPos.y - joystickStart.y;
+    moveVector.x = dx / 50;
+    moveVector.y = dy / 50;
+    joystickStick.style.transform = `translate(${dx}px, ${dy}px)`;
+  }
+  function onTouchStart(e) {
+    try {
+      safePreventDefault(e);
+      safeStopPropagation(e);
+      joystickActive = true;
+      const touch = e.targetTouches ? e.targetTouches[0] : e;
+      const rect = joystickContainer.getBoundingClientRect();
+      joystickStart = { x: rect.left + 60, y: rect.top + 60 };
+      joystickPos = { x: touch.clientX, y: touch.clientY };
+      joystickPos = limitJoystick(joystickPos);
+      updateJoystick();
+    } catch (error) {
+      console.warn('Touch start error:', error);
+    }
+  }
+  function onTouchMove(e) {
+    try {
+      if (!joystickActive) return;
+      safePreventDefault(e);
+      safeStopPropagation(e);
+      const touch = e.targetTouches ? e.targetTouches[0] : e;
+      joystickPos = { x: touch.clientX, y: touch.clientY };
+      joystickPos = limitJoystick(joystickPos);
+      updateJoystick();
+    } catch (error) {
+      console.warn('Touch move error:', error);
+    }
+  }
+  function onTouchEnd(e) {
+    try {
+      safePreventDefault(e);
+      safeStopPropagation(e);
+      joystickActive = false;
+      moveVector = { x: 0, y: 0 };
+      joystickStick.style.transform = `translate(0px,0px)`;
+    } catch (error) {
+      console.warn('Touch end error:', error);
+    }
+  }
+  
+  joystickContainer.addEventListener('touchstart', onTouchStart, { passive: false });
+  joystickContainer.addEventListener('touchmove', onTouchMove, { passive: false });
+  joystickContainer.addEventListener('touchend', onTouchEnd, { passive: false });
+  joystickContainer.addEventListener('touchcancel', onTouchEnd, { passive: false });
+  joystickContainer.addEventListener('mousedown', e => {
+    try {
+      safePreventDefault(e);
+      onTouchStart(e);
+    } catch (error) {
+      console.warn('Mouse down error:', error);
+    }
+  });
+  window.addEventListener('mousemove', e => {
+    try {
+      if (joystickActive) onTouchMove(e);
+    } catch (error) {
+      console.warn('Mouse move error:', error);
+    }
+  });
+  window.addEventListener('mouseup', e => {
+    try {
+      if (joystickActive) onTouchEnd(e);
+    } catch (error) {
+      console.warn('Mouse up error:', error);
+    }
+  });
+
+  // --- Klavye kontrolleri ---
+  const keys = {};
+  window.addEventListener('keydown', e => { 
+    try { 
+      keys[e.key.toLowerCase()] = true; 
+    } catch (error) { 
+      console.warn('Keydown error:', error); 
+    } 
+  });
+  window.addEventListener('keyup', e => { 
+    try { 
+      keys[e.key.toLowerCase()] = false; 
+    } catch (error) { 
+      console.warn('Keyup error:', error); 
+    } 
+  });
+
+  // --- Yardımcı Fonksiyonlar ---
+  function circlesCollide(a, b) {
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    return Math.sqrt(dx * dx + dy * dy) < a.radius + b.radius;
+  }
+
+  // --- Oyuncu Hareketi ---
+  function updatePlayer() {
+    if (!player.canMove || gameOver) return;
+    let dx = 0, dy = 0;
+    if (keys['w'] || keys['arrowup']) dy -= 1;
+    if (keys['s'] || keys['arrowdown']) dy += 1;
+    if (keys['a'] || keys['arrowleft']) dx -= 1;
+    if (keys['d'] || keys['arrowright']) dx += 1;
+    if (dx !== 0 || dy !== 0) {
+      const len = Math.sqrt(dx * dx + dy * dy);
+      dx /= len; dy /= len;
+    }
+    let mx = moveVector.x + dx;
+    let my = moveVector.y + dy;
+    if (mx !== 0 || my !== 0) {
+      const len = Math.sqrt(mx * mx + my * my);
+      mx /= len; my /= len;
+      player.x += mx * player.speed;
+      player.y += my * player.speed;
+    }
+    if (player.x < player.radius) player.x = player.radius;
+    if (player.y < player.radius) player.y = player.radius;
+    if (player.x > WORLD_SIZE - player.radius) player.x = WORLD_SIZE - player.radius;
+    if (player.y > WORLD_SIZE - player.radius) player.y = WORLD_SIZE - player.radius;
+    if (player.invincibleTimer > 0) player.invincibleTimer--;
+    if (player.attackCooldown > 0) player.attackCooldown--;
+    // Süper güç sonsuz yapıldı: powerActive true ise powerTimer hiç azalmasın
+    if (player.powerActive) {
+      // powerTimer artık azalmaz, süper güç sonsuz
+    }
+  }
+
+  // --- Tuxaklara Çarpma ---
+  function checkTuxakCollision() {
+    if (!player.canMove || gameOver) return;
+    for (let t of tuxaks) {
+      if (circlesCollide(player, t)) {
+        if (player.invincibleTimer <= 0) {
+          player.hp -= 2;
+          player.invincibleTimer = 20;
+          if (player.hp < 0) player.hp = 0;
+        }
+      }
+    }
+  }
+
+  // --- Kırmızı Buton ---
+  function checkRedButton() {
+    if (redButton.activated || gameOver) return;
+    if (circlesCollide(player, redButton)) {
+      redButton.activated = true;
+      createExplosion(redButton.x, redButton.y, 'red', 40);
+      safePlay(sfxButton);
+      startDialogue([{ speaker: 'Gizemli Ses', text: "Bu topraklarda hiçbir şey bedava verilmez, dikkatli ol!" }]);
+      redButton.x = Math.random() * (WORLD_SIZE - 200) + 100;
+      redButton.y = Math.random() * (WORLD_SIZE - 200) + 100;
+      setTimeout(() => redButton.activated = false, 5000);
+    }
+  }
+
+  // --- Suçluların Güncellenmesi ---
+  function updateCriminals() {
+    for (let i of criminals) {
+      if (!i.alive) {
+        if(i.bleeding) {
+          i.bleedTimer--;
+          if(i.bleedTimer <= 0) {
+            i.bleeding = false;
+          }
+        }
+        continue;
+      }
+      const dx = player.x - i.x;
+      const dy = player.y - i.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 400) {
+        i.x -= (dx / dist) * i.speed;
+        i.y -= (dy / dist) * i.speed;
+      } else {
+        i.x += (Math.random() - 0.5) * i.speed * 0.7;
+        i.y += (Math.random() - 0.5) * i.speed * 0.7;
+      }
+      i.x = Math.max(i.radius, Math.min(WORLD_SIZE - i.radius, i.x));
+      i.y = Math.max(i.radius, Math.min(WORLD_SIZE - i.radius, i.y));
+    }
+  }
+
+  // --- Saldırı Kontrolü ---
+  let attacking = false;
+  
+  function handleAttackStart(e) {
+    try {
+      if (player.canAttack) { 
+        attacking = true; 
+        safePreventDefault(e);
+      }
+    } catch (error) {
+      console.warn('Attack start error:', error);
+    }
+  }
+  
+  function handleAttackEnd(e) {
+    try {
+      attacking = false; 
+      safePreventDefault(e);
+    } catch (error) {
+      console.warn('Attack end error:', error);
+    }
+  }
+  
+  attackButton.addEventListener('mousedown', handleAttackStart);
+  attackButton.addEventListener('mouseup', handleAttackEnd);
+  attackButton.addEventListener('touchstart', handleAttackStart, { passive: false });
+  attackButton.addEventListener('touchend', handleAttackEnd, { passive: false });
+
+  function playerAttack() {
+    if (!attacking || !player.canAttack || player.attackCooldown > 0 || gameOver) return;
+    player.attackCooldown = 30;
+    if (currentBoss && currentBoss.active && !currentBoss.isDefeated) {
+      const dist = Math.sqrt((player.x - currentBoss.x) ** 2 + (player.y - currentBoss.y) ** 2);
+      if (dist < player.radius + currentBoss.radius + 100) {
+        currentBoss.hp -= 10 * player.damageMultiplier;
+        safePlay(sfxPlayerHit);
+        createExplosion(currentBoss.x, currentBoss.y, 'orange', 15);
+        if (currentBoss.hp <= 0) {
+          currentBoss.isDefeated = true;
+          safePlay(sfxBossDefeat);
+          player.power = currentBoss.power;
+          player.powerActive = true;
+          player.power.effect(player);
+          info.textContent = 'Süper Güç: ' + player.power.name;
+          addCoins(125 * player.coinMultiplier);
+          endBossFight();
+          bosses[currentBossIndex].defeated = true;
+          if (currentBossIndex < bosses.length - 1) {
+            currentBossIndex++;
+            killedCriminalsCount = 0;
+            updateQuestInfo();
+            startDialogue([{ speaker: 'Karanlık Ses', text: `Bir boss daha etkisizleştirildi. Sıradaki için ${bosses[currentBossIndex].innocentKillsNeeded} suçlu katili etkisizleştir!` }]);
+          } else {
+            endGame();
+          }
+        }
+        updateBossHpBar();
+      }
+    }
+    for (let i = criminals.length - 1; i >= 0; i--) {
+      const person = criminals[i];
+      if (!person.alive) continue;
+      const dist = Math.sqrt((player.x - person.x) ** 2 + (player.y - person.y) ** 2);
+      if (dist < player.radius + person.radius + 10) {
+        person.alive = false;
+        person.bleeding = true;
+        person.bleedTimer = 600;
+        bloodPools.push({ x: person.x, y: person.y, radius: person.radius + 5, alpha: 1 });
+        safePlay(sfxShot);
+        safePlay(sfxScreaming);
+        killedCriminalsCount++;
+        addCoins(50 * player.coinMultiplier);
+        updateQuestInfo();
+        break;
+      }
+    }
+  }
+
+  // --- Görev Bilgisi Güncelle ---
+  function updateQuestInfo() {
+    if (gameOver) return;
+    if (currentBossIndex >= bosses.length) {
+      questInfo.textContent = 'Tüm Bosslar Etkisizleştirildi!';
+      return;
+    }
+    const currentQuestBoss = bosses[currentBossIndex];
+    if (currentQuestBoss.defeated) {
+      questInfo.textContent = 'Görev: Tamamlandı! Sonraki Boss Yolda...';
+    } else {
+      questInfo.textContent = `Görev: Suçlu Katilleri Etkisizleştir (${killedCriminalsCount}/${currentQuestBoss.innocentKillsNeeded})`;
+    }
+  }
+
+  // --- Parçacık Efektleri ---
+  function createExplosion(x, y, color = 'yellow', count = 30) {
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x, y,
+        vx: (Math.random() - 0.5) * 6,
+        vy: (Math.random() - 0.5) * 6,
+        radius: Math.random() * 3 + 2,
+        life: 60,
+        color
+      });
+    }
+  }
+  function updateParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.12;
+      p.life--;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+
+  // --- Kan Havuzları ---
+  function updateBloodPools() {
+    for (let i = bloodPools.length - 1; i >= 0; i--) {
+      const b = bloodPools[i];
+      b.alpha -= 0.0025;
+      if (b.alpha <= 0) bloodPools.splice(i, 1);
+    }
+  }
+
+  // --- Boss Dövüşü Başlatma ---
+  function checkBossActivation() {
+    if (inBossFight || gameOver) return;
+    const targetBoss = bosses[currentBossIndex];
+    if (killedCriminalsCount < targetBoss.innocentKillsNeeded) return;
+    if (!currentBoss) {
+      player.x = targetBoss.x;
+      player.y = targetBoss.y - targetBoss.radius - player.radius - 10;
+      currentBoss = targetBoss;
+      // Eğer 1. boss ise sinematik başlat
+      if (currentBossIndex === 0 && !thirdKatilSinematikPlayed) {
+        startThirdKatilSinematik(() => {
+          startBossFight(currentBoss);
+        });
+      } else {
+        startBossFight(currentBoss);
+      }
+    }
+  }
+
+  // --- Diyaloglar ---
+  const dialogueSamples = {
+    intro: [
+      { speaker: 'Karanlık Ses', text: "Uyan, kahraman! Bu dünyada adalet senin elinde." },
+      { speaker: 'Karanlık Ses', text: "Suçluları etkisizleştir ve güçlü bossları alt et." },
+      { speaker: 'Karanlık Ses', text: `İlk görevin: ${bosses[0].innocentKillsNeeded} suçlu katili etkisizleştir, sonra ilk boss seni bekliyor.` }
+    ],
+    bosses: {
+      "Hız Laneti Lordu": [
+        { speaker: 'Hız Laneti Lordu', text: "Hızımı yakalayamazsın!" },
+        { speaker: 'Oyuncu', text: "Adaletin gücüyle seni durduracağım!" },
+        { speaker: 'Hız Laneti Lordu', text: "Göreceğiz!" }
+      ],
+      "Gölge Şerefsizi": [
+        { speaker: 'Gölge Şerefsizi', text: "Karanlık benim koruyucum!" },
+        { speaker: 'Oyuncu', text: "Işık seni yok edecek!" },
+        { speaker: 'Gölge Şerefsizi', text: "Cesaretin seni yenecek mi?" }
+      ],
+      "Kanlı Şaman": [
+        { speaker: 'Kanlı Şaman', text: "Ruhlar benimle!" },
+        { speaker: 'Oyuncu', text: "Ruhlarınla başa çıkacağım!" },
+        { speaker: 'Kanlı Şaman', text: "Bu toprağı kanla sulayacağım!" }
+      ],
+      "Devasa Piç": [
+        { speaker: 'Devasa Piç', text: "Gücüm karşısında eğil!" },
+        { speaker: 'Oyuncu', text: "Gücün bitecek!" },
+        { speaker: 'Devasa Piç', text: "Göreceğiz!" }
+      ],
+      "Karanlık Yaratıcı": [
+        { speaker: 'Karanlık Yaratıcı', text: "Sonun geldi!" },
+        { speaker: 'Oyuncu', text: "Adalet yerini bulacak!" },
+        { speaker: 'Karanlık Yaratıcı', text: "Hazır ol!" }
+      ],
+      "3. Katil": [
+        { speaker: '3. Katil', text: "Adımlarımı takip et, kaçamazsın!" },
+        { speaker: '3. Katil', text: "Hazır ol, tetiği çekeceğim!" }
+      ]
+    }
+  };
+
+  let dialogues = [];
+  let currentDialogueIndex = 0;
+  let dialogueTimeout = null;
+
+  function showDialogue(text, speaker) {
+    dialogueBox.style.display = 'block';
+    dialogueBox.innerHTML = `<strong>${speaker}:</strong> ${text}`;
+  }
+  function hideDialogue() {
+    dialogueBox.style.display = 'none';
+  }
+  function startDialogue(lines, onComplete) {
+    if (dialogueTimeout) clearTimeout(dialogueTimeout);
+    dialogues = lines;
+    currentDialogueIndex = 0;
+    player.canMove = false;
+    player.canAttack = false;
+    function next() {
+      if (currentDialogueIndex >= dialogues.length) {
+        hideDialogue();
+        player.canMove = true;
+        player.canAttack = true;
+        if (onComplete) onComplete();
+        return;
+      }
+      const line = dialogues[currentDialogueIndex];
+      showDialogue(line.text, line.speaker);
+      currentDialogueIndex++;
+      dialogueTimeout = setTimeout(next, 3000);
+    }
+    next();
+  }
+
+  // --- Boss Dövüşü Başlat ---
+  function startBossFight(boss) {
+    if (inBossFight || boss.isDefeated) return;
+    inBossFight = true;
+    currentBoss = boss;
+    currentBoss.active = true;
+    currentBoss.hp = currentBoss.maxHp;
+    safePause(bgmExploration);
+    safePause(bgmStartMenu);
+    safeSetVolume(bgmBoss, 0.5);
+    safePlay(bgmBoss);
+    bossContainer.style.display = 'block';
+    bossNameDisplay.textContent = boss.name;
+    updateBossHpBar();
+    startDialogue(dialogueSamples.bosses[boss.name], () => {
+      player.canMove = true;
+      player.canAttack = true;
+    });
+  }
+
+  // --- Boss Dövüşü Bitir ---
+  function endBossFight() {
+    inBossFight = false;
+    if (currentBoss) {
+      currentBoss.active = false;
+      currentBoss = null;
+    }
+    bossContainer.style.display = 'none';
+    safePause(bgmBoss);
+    safeSetVolume(bgmExploration, 0.4);
+    safePlay(bgmExploration);
+  }
+
+  // --- Boss HP Bar Güncelle ---
+  function updateBossHpBar() {
+    if (!currentBoss) return;
+    const ratio = Math.max(0, currentBoss.hp / currentBoss.maxHp);
+    bossHpBarInner.style.width = (ratio * 100) + '%';
+  }
+
+  // --- Oyun Bitti ---
+  function endGame() {
+    gameOver = true;
+    player.canMove = false;
+    player.canAttack = false;
+    if (dialogueTimeout) clearTimeout(dialogueTimeout);
+    hideDialogue();
+    endBossFight();
+    safePause(bgmExploration);
+    safePause(bgmBoss);
+    gameOverScreen.textContent = "Oyun Bitti! Adalet Yerini Buldu!";
+    gameOverScreen.style.display = 'flex';
+    addCoins(400 * player.coinMultiplier);
+  }
+
+  // --- Sinematik 3. Katil ---
+
+  let thirdKatilSinematikPlayed = false;
+  let thirdKatilStepCount = 0;
+  const thirdKatilStepMax = 3;
+  const thirdKatilStepInterval = 120; // frame sayısı (2 saniye)
+  let thirdKatilStepTimer = 0;
+  let thirdKatilPhase = 0; // 0: yok, 1: adım adım yaklaşma, 2: tetik çekme, 3: bitti
+
+  function startThirdKatilSinematik(onComplete) {
+    thirdKatilSinematikPlayed = true;
+    thirdKatilStepCount = 0;
+    thirdKatilStepTimer = 0;
+    thirdKatilPhase = 1;
+    player.canMove = false;
+    player.canAttack = false;
+    thirdKatilElem.style.display = 'block';
+    thirdKatilDialogue.style.display = 'block';
+    thirdKatilDialogue.textContent = '';
+    thirdKatilElem.style.bottom = '100px';
+    thirdKatilElem.style.left = '50%';
+    thirdKatilElem.classList.remove('shooting');
+    thirdKatilOnComplete = onComplete;
+    thirdKatilDialogueQueue = [...dialogueSamples.bosses["3. Katil"]];
+    thirdKatilDialogueIndex = 0;
+    thirdKatilDialogueTimer = 0;
+  }
+
+  let thirdKatilOnComplete = null;
+  let thirdKatilDialogueQueue = [];
+  let thirdKatilDialogueIndex = 0;
+  let thirdKatilDialogueTimer = 0;
+
+  function flashFireEffect() {
+    fireFlash.style.opacity = '1';
+    setTimeout(() => {
+      fireFlash.style.opacity = '0';
+    }, 150);
+  }
+
+  function updateThirdKatilSinematik() {
+    if (thirdKatilPhase === 0) return;
+
+    if (thirdKatilPhase === 1) {
+      thirdKatilStepTimer++;
+      if (thirdKatilStepTimer >= thirdKatilStepInterval) {
+        thirdKatilStepTimer = 0;
+        thirdKatilStepCount++;
+        // Katil biraz aşağı iner (yaklaşır)
+        let bottomPx = parseInt(thirdKatilElem.style.bottom);
+        bottomPx += 40; // adım mesafesi
+        thirdKatilElem.style.bottom = bottomPx + 'px';
+        // Oyuncu 3 adım geri gider
+        player.y -= 3 * player.speed;
+        if (player.y < player.radius) player.y = player.radius;
+        // Diyalog göster
+        if (thirdKatilDialogueIndex < thirdKatilDialogueQueue.length) {
+          thirdKatilDialogue.textContent = thirdKatilDialogueQueue[thirdKatilDialogueIndex].text;
+          thirdKatilDialogueIndex++;
+        }
+        if (thirdKatilStepCount >= thirdKatilStepMax) {
+          thirdKatilPhase = 2;
+          thirdKatilDialogueTimer = 0;
+        }
+      }
+    } else if (thirdKatilPhase === 2) {
+      thirdKatilDialogueTimer++;
+      if (thirdKatilDialogueTimer === 30) {
+        thirdKatilElem.classList.add('shooting');
+        safePlay(sfxThirdKatilShoot);
+        flashFireEffect();
+      }
+      if (thirdKatilDialogueTimer === 60) {
+        const damage = Math.floor(player.maxHp * 0.09);
+        player.hp -= damage;
+        if (player.hp < 0) player.hp = 0;
+        if (thirdKatilDialogueIndex < thirdKatilDialogueQueue.length) {
+          thirdKatilDialogue.textContent = thirdKatilDialogueQueue[thirdKatilDialogueIndex].text;
+          thirdKatilDialogueIndex++;
+        }
+      }
+      if (thirdKatilDialogueTimer >= 90) {
+        thirdKatilPhase = 3;
+        thirdKatilDialogueTimer = 0;
+      }
+    } else if (thirdKatilPhase === 3) {
+      thirdKatilElem.style.display = 'none';
+      thirdKatilDialogue.style.display = 'none';
+      player.canMove = true;
+      player.canAttack = true;
+      thirdKatilPhase = 0;
+      if (thirdKatilOnComplete) {
+        thirdKatilOnComplete();
+        thirdKatilOnComplete = null;
+      }
+    }
+  }
+
+  // --- Güncelleme Döngüsü ---
+  function update() {
+    updatePlayer();
+    checkTuxakCollision();
+    checkRedButton();
+    updateCriminals();
+    if (inBossFight && currentBoss && !currentBoss.isDefeated) {
+      currentBoss.update();
+    } else {
+      checkBossActivation();
+    }
+    playerAttack();
+    updateParticles();
+    updateBloodPools();
+    updateThirdKatilSinematik();
+  }
+
+  // --- Çizim Döngüsü ---
+  function draw() {
+    try {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      camera.width = canvas.width;
+      camera.height = canvas.height;
+      camera.x = player.x - camera.width / 2;
+      camera.y = player.y - camera.height / 2;
+      camera.x = Math.max(0, Math.min(WORLD_SIZE - camera.width, camera.x));
+      camera.y = Math.max(0, Math.min(WORLD_SIZE - camera.height, camera.y));
+      const gridSize = 100;
+      ctx.strokeStyle = '#222';
+      ctx.lineWidth = 1;
+      for (let x = -camera.x % gridSize; x < canvas.width; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = -camera.y % gridSize; y < canvas.height; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+      for (let t of tuxaks) {
+        const tx = t.x - camera.x;
+        const ty = t.y - camera.y;
+        ctx.beginPath();
+        ctx.fillStyle = t.color;
+        ctx.shadowColor = '#555';
+        ctx.shadowBlur = 10;
+        ctx.arc(tx, ty, t.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+      for (let i of criminals) {
+        const ix = i.x - camera.x;
+        const iy = i.y - camera.y;
+        if (i.alive) {
+          ctx.beginPath();
+          ctx.fillStyle = i.color;
+          ctx.shadowColor = i.color;
+          ctx.shadowBlur = 8;
+          ctx.arc(ix, iy, i.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        } else if (i.bleeding) {
+          ctx.beginPath();
+          ctx.fillStyle = `rgba(255,0,0,${Math.min(0.5, i.bleedTimer / 600 * 0.5)})`;
+          ctx.shadowColor = 'red';
+          ctx.shadowBlur = 15;
+          ctx.arc(ix, iy, i.radius + 10, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+      }
+      for (let b of bloodPools) {
+        const bx = b.x - camera.x;
+        const by = b.y - camera.y;
+        ctx.save();
+        ctx.translate(bx, by);
+        ctx.scale(1.5, 0.8);
+        ctx.beginPath();
+        ctx.arc(0, 0, b.radius, 0, Math.PI * 2);
+        ctx.restore();
+        ctx.fillStyle = `rgba(150, 0, 0, ${b.alpha * 0.4})`;
+        ctx.shadowColor = 'darkred';
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+      const bx = redButton.x - camera.x;
+      const by = redButton.y - camera.y;
+      if (!redButton.activated) {
+        const glow = 20 + 10 * Math.sin(Date.now() / 300);
+        let grad = ctx.createRadialGradient(bx, by, redButton.radius * 0.5, bx, by, redButton.radius + glow);
+        grad.addColorStop(0, 'rgba(255,0,0,0.9)');
+        grad.addColorStop(1, 'rgba(255,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(bx, by, redButton.radius + glow, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = redButton.color;
+      ctx.shadowColor = 'red';
+      ctx.shadowBlur = 25;
+      ctx.beginPath();
+      ctx.arc(bx, by, redButton.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      const px = player.x - camera.x;
+      const py = player.y - camera.y;
+      const grad = ctx.createRadialGradient(px, py, player.radius, px, py, camera.fovRadius);
+      grad.addColorStop(0, 'rgba(255,255,255,0.3)');
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(px, py, camera.fovRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = player.invincibleTimer > 0 ? 'cyan' : 'white';
+      ctx.beginPath();
+      ctx.arc(px, py, player.radius, 0, Math.PI * 2);
+      ctx.stroke();
+      hpBarInner.style.width = (player.hp / player.maxHp) * 100 + '%';
+      bosses.forEach(b => b.draw());
+      particles.forEach(p => {
+        const x = p.x - camera.x;
+        const y = p.y - camera.y;
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(x, y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+    } catch (error) {
+      console.warn('Draw error:', error);
+    }
+  }
+
+  // --- Canvas Boyutlandırma ---
+  function resize() {
+    try {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    } catch (error) {
+      console.warn('Resize error:', error);
+    }
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // --- Güvenli Ses Fonksiyonları ---
+  function safePlay(audio) {
+    if (!audio) return;
+    try { 
+      audio.currentTime = 0; 
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(e => console.warn('Audio play failed:', e));
+      }
+    } catch(e) {
+      console.warn('Audio play error:', e);
+    }
+  }
+  function safePause(audio) {
+    if (!audio) return;
+    try { 
+      audio.pause(); 
+      audio.currentTime = 0; 
+    } catch(e) {
+      console.warn('Audio pause error:', e);
+    }
+  }
+  function safeSetVolume(audio, v) {
+    if (!audio) return;
+    try { 
+      audio.volume = Math.max(0, Math.min(1, v)); 
+    } catch(e) {
+      console.warn('Audio volume error:', e);
+    }
+  }
+
+  // --- Coin Yönetimi ---
+  function loadCoins() {
+    try {
+      const c = localStorage.getItem('karanlikCoins');
+      coins = c ? parseInt(c) : 0;
+      updateCoinDisplay();
+    } catch (error) {
+      console.warn('Load coins error:', error);
+      coins = 0;
+      updateCoinDisplay();
+    }
+  }
+  function saveCoins() {
+    try {
+      localStorage.setItem('karanlikCoins', coins);
+    } catch (error) {
+      console.warn('Save coins error:', error);
+    }
+  }
+  function addCoins(amount) {
+    coins += amount;
+    updateCoinDisplay();
+    saveCoins();
+  }
+  function spendCoins(amount) {
+    if (coins >= amount) {
+      coins -= amount;
+      updateCoinDisplay();
+      saveCoins();
+      return true;
+    }
+    return false;
+  }
+  function updateCoinDisplay() {
+    try {
+      coinCountSpan.textContent = coins;
+    } catch (error) {
+      console.warn('Update coin display error:', error);
+    }
+  }
+
+  // --- Shop Durumu Yükle/Kaydet ---
+  function loadShop() {
+    try {
+      const saved = localStorage.getItem('karanlikShop');
+      if (saved) {
+        const obj = JSON.parse(saved);
+        for (let key in shopPowers) {
+          if (obj[key]) shopPowers[key].bought = true;
+        }
+      }
+      updateShopButtons();
+    } catch (error) {
+      console.warn('Load shop error:', error);
+    }
+  }
+  function saveShop() {
+    try {
+      const obj = {};
+      for (let key in shopPowers) {
+        obj[key] = shopPowers[key].bought;
+      }
+      localStorage.setItem('karanlikShop', JSON.stringify(obj));
+    } catch (error) {
+      console.warn('Save shop error:', error);
+    }
+  }
+  function updateShopButtons() {
+    const buttons = shopScreen.querySelectorAll('.shopItem button');
+    buttons.forEach(btn => {
+      const power = btn.getAttribute('data-power');
+      if (shopPowers[power].bought) {
+        btn.disabled = true;
+        btn.textContent = 'Satın Alındı';
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Satın Al';
+      }
+    });
+  }
+
+  // --- Shop Butonları ---
+  shopScreen.addEventListener('click', e => {
+    if (e.target.tagName.toLowerCase() === 'button' && e.target.hasAttribute('data-power')) {
+      const power = e.target.getAttribute('data-power');
+      const powerData = shopPowers[power];
+      if (!powerData.bought && spendCoins(powerData.cost)) {
+        powerData.bought = true;
+        applyShopPower(power);
+        safePlay(sfxPowerUp);
+        updateShopButtons();
+        saveShop();
+      }
+    }
+  });
+  shopCloseBtn.addEventListener('click', () => {
+    shopScreen.style.display = 'none';
+    safePlay(sfxButton);
+  });
+  openShopBtn.addEventListener('click', () => {
+    shopScreen.style.display = 'block';
+    safePlay(sfxButton);
+  });
+
+  function applyShopPower(power) {
+    switch(power) {
+      case 'speed':
+        player.speed *= 2;
+        break;
+      case 'damage':
+        player.damageMultiplier = 2;
+        break;
+      case 'coin':
+        player.coinMultiplier = 2;
+        break;
+    }
+  }
+
+  // --- Start Game ---
+  startGameBtn.addEventListener('click', () => {
+    startScreen.style.display = 'none';
+    safePause(bgmStartMenu);
+    safeSetVolume(bgmExploration, 0.4);
+    safePlay(bgmExploration);
+    startDialogue(dialogueSamples.intro);
+  });
+
+  // --- Oyun Döngüsü ---
+  function gameLoop() {
+    update();
+    draw();
+    if (!gameOver) requestAnimationFrame(gameLoop);
+  }
+
+  // --- Başlangıç ---
+  loadCoins();
+  loadShop();
+  safePlay(bgmStartMenu);
+
+  requestAnimationFrame(gameLoop);
+
+})();
+</script>
+
+</body>
+</html>
